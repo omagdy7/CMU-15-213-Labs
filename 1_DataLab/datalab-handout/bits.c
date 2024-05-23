@@ -13,6 +13,8 @@
  * case it's OK.
  */
 
+#include <limits.h>
+#include <stdio.h>
 #if 0
 /*
  * Instructions to Students:
@@ -138,14 +140,18 @@ NOTES:
  *   Max ops: 14
  *   Rating: 1
  */
-int bitXor(int x, int y) { return 2; }
+int bitXor(int x, int y) {
+  int mask = ~(~x & ~y);
+  int ans = ~(x & y) & mask;
+  return ans;
+}
 /*
  * tmin - return minimum two's complement integer
  *   Legal ops: ! ~ & ^ | + << >>
  *   Max ops: 4
  *   Rating: 1
  */
-int tmin(void) { return 2; }
+int tmin(void) { return (1 << 31); }
 // 2
 /*
  * isTmax - returns 1 if x is the maximum, two's complement number,
@@ -154,7 +160,7 @@ int tmin(void) { return 2; }
  *   Max ops: 10
  *   Rating: 2
  */
-int isTmax(int x) { return 2; }
+int isTmax(int x) { return !(x ^ ~(1 << 31)); }
 /*
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
  *   Examples allOddBits(0xFFFFFFFD) = 0, allOddBits(0xAAAAAAAA) = 1
@@ -162,7 +168,7 @@ int isTmax(int x) { return 2; }
  *   Max ops: 12
  *   Rating: 2
  */
-int allOddBits(int x) { return 2; }
+int allOddBits(int x) { return !((x & 0xAAAAAAAA) ^ (0xAAAAAAAA)); }
 /*
  * negate - return -x
  *   Example: negate(1) = -1.
@@ -170,7 +176,7 @@ int allOddBits(int x) { return 2; }
  *   Max ops: 5
  *   Rating: 2
  */
-int negate(int x) { return 2; }
+int negate(int x) { return ~(x) + 1; }
 // 3
 /*
  * isAsciiDigit - return 1 if 0x30 <= x <= 0x39 (ASCII codes for characters '0'
@@ -180,7 +186,13 @@ int negate(int x) { return 2; }
  *   Max ops: 15
  *   Rating: 3
  */
-int isAsciiDigit(int x) { return 2; }
+int isAsciiDigit(int x) {
+  int lower_bound = x + (~0x30 + 1);
+  int upper_bound = 0x39 + (~x + 1);
+  int lower_check = !((lower_bound >> 31) & 1);
+  int upper_check = !((upper_bound >> 31) & 1);
+  return lower_check & upper_check;
+}
 /*
  * conditional - same as x ? y : z
  *   Example: conditional(2,4,5) = 4
@@ -188,7 +200,10 @@ int isAsciiDigit(int x) { return 2; }
  *   Max ops: 16
  *   Rating: 3
  */
-int conditional(int x, int y, int z) { return 2; }
+int conditional(int x, int y, int z) {
+  int mask = ~(!!x) + 1;
+  return (y & mask) | (z & ~mask);
+}
 /*
  * isLessOrEqual - if x <= y  then return 1, else return 0
  *   Example: isLessOrEqual(4,5) = 1.
@@ -196,7 +211,19 @@ int conditional(int x, int y, int z) { return 2; }
  *   Max ops: 24
  *   Rating: 3
  */
-int isLessOrEqual(int x, int y) { return 2; }
+int isLessOrEqual(int x, int y) {
+  int xSign = (x >> 31) & 1;
+  int ySign = (y >> 31) & 1;
+
+  int diff = y + (~x + 1);
+  int diffSign = (diff >> 31);
+
+  int mask = ~(xSign ^ ySign) + 1;
+
+  // Return sign of x if the signs are different else return the negation of the
+  // sign of difference opartion
+  return (xSign & mask) | (!diffSign & ~mask);
+}
 // 4
 /*
  * logicalNeg - implement the ! operator, using all of
@@ -206,7 +233,10 @@ int isLessOrEqual(int x, int y) { return 2; }
  *   Max ops: 12
  *   Rating: 4
  */
-int logicalNeg(int x) { return 2; }
+int logicalNeg(int x) {
+  int mask = ~(!!x) + 1;
+  return (0 & mask) | (1 & ~mask);
+}
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
  *  Examples: howManyBits(12) = 5
@@ -219,7 +249,42 @@ int logicalNeg(int x) { return 2; }
  *  Max ops: 90
  *  Rating: 4
  */
-int howManyBits(int x) { return 0; }
+int howManyBits(int x) {
+  int bitCount = 1; // start with 1 bit for the sign
+  int shift;
+
+  // Normalize x: make x positive
+  x = x ^ (x >> 31);
+
+  // We need to determine the number of necessary bits, this is doable using
+  // something like binary search
+
+  shift = !!(x >> 16) << 4; // If high 16 bits have any bits set, shift by 16
+                            // and increase count by 16
+  bitCount += shift;
+  x >>= shift;
+
+  shift = !!(x >> 8) << 3; // Next check high 8 bits of current half
+  bitCount += shift;
+  x >>= shift;
+
+  shift = !!(x >> 4) << 2; // Next check high 4 bits of current half
+  bitCount += shift;
+  x >>= shift;
+
+  shift = !!(x >> 2) << 1; // Next check high 2 bits of current half
+  bitCount += shift;
+  x >>= shift;
+
+  shift = !!(x >> 1); // Check if there is any bit set in the top two
+  bitCount += shift;
+  x >>= shift;
+
+  // Add any remaining bits
+  bitCount += x;
+
+  return bitCount;
+}
 // float
 /*
  * float_twice - Return bit-level equivalent of expression 2*f for
